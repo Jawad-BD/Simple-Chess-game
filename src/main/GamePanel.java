@@ -28,7 +28,8 @@ public class GamePanel extends JPanel implements Runnable{
     public  static  ArrayList<Piece> pieces =new ArrayList<>();
     public static ArrayList<Piece> simPieces = new ArrayList<>();
     ArrayList<Piece> simPiecesCopy = new ArrayList<>();
-    Piece activeP;
+    ArrayList<Piece> promotedPieces = new ArrayList<>();
+    Piece activeP,cheakingP;
     public  static Piece castlingP;
 
     //COLORS
@@ -39,6 +40,8 @@ public class GamePanel extends JPanel implements Runnable{
     //BOOLEANS
     boolean canMove;
     boolean validSquare;
+    boolean promotion;
+    boolean GameOver;
 
 
 
@@ -132,7 +135,10 @@ public class GamePanel extends JPanel implements Runnable{
     
     //this methode is gonna handle all the updating stuff(piece X and Y pos or the number of the pieces)
     private void update() {
-        if (mouse.pressed) {
+        if (promotion) {
+            promoting();
+        }else{
+            if (mouse.pressed) {
                 if (activeP == null) {
                 // If the activeP is null,check if you can pick up a piece
                 for (Piece piece : simPieces) {
@@ -144,30 +150,44 @@ public class GamePanel extends JPanel implements Runnable{
                     }
                 }
                 //If the played is already holding a piece(THINKING PHASE)
-            } else {
-                simulate();
-            }
-        }
-        ///////MOUSE BUTTON RELEASED/////////
-        if (mouse.pressed == false) {
-            if (activeP != null) {
-                if (validSquare) {
-                    //MOVE CONFIRMED
-                    //Update the piece list in case  a piece  has been captured  and removed during   the simulation
-                    copyPieces(simPieces, pieces);
-                    activeP.updatePosition();
-                    if (castlingP!=null) {
-                        castlingP.updatePosition();
-                    }
-                    changeTurn();
                 } else {
-                    //the move is not valid so reset everything
-                    copyPieces(pieces, simPieces);
-                    activeP.resetPosition();
-                    activeP = null;
+                    simulate();
                 }
             }
+            ///////MOUSE BUTTON RELEASED/////////
+            if (mouse.pressed == false) {
+                if (activeP != null) {
+                    if (validSquare) {
+                        //MOVE CONFIRMED
+                        //Update the piece list in case  a piece  has been captured  and removed during   the simulation
+                        copyPieces(simPieces, pieces);
+                        activeP.updatePosition();
+                        if (castlingP!=null) {
+                            castlingP.updatePosition();
+                        }
+                        if (isKingInCheck()) {
+                            //next in checkmate
+                        }else{
+                            if(canPromote()){
+                                promotion=true;
+                            }
+                            else{
+                                changeTurn();   
+                            }
+                        }
+                        
+                    
+                    } else {
+                        //the move is not valid so reset everything
+                        copyPieces(pieces, simPieces);
+                        activeP.resetPosition();
+                        activeP = null;
+                    }
+                }
+            }
+
         }
+        
     }
 
     private void simulate() {
@@ -198,10 +218,65 @@ public class GamePanel extends JPanel implements Runnable{
                 simPieces.remove(activeP.hittingP.getIndex());
             }
             checkCastling();
+            if (isIllegale(activeP)==false && oppCanCaptureTheKing() == false) {
+                validSquare = true;
+            }
             validSquare = true;
         }
     }
-    
+    private boolean isIllegale(Piece king){
+        if(king.type == Type.KING){
+            for(Piece piece : simPieces){
+                if(piece !=king && piece.color != king.color && piece.canMove(king.col, king.row)){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+
+    private boolean oppCanCaptureTheKing(){
+        Piece king = getKing(false);
+        for (Piece piece : simPieces) {
+            if (piece.color != king.color && piece.canMove(king.col, king.row)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    private boolean isKingInCheck(){
+        Piece king = getKing(true);
+        if (activeP.canMove(king.col, king.row)) {
+            cheakingP = activeP;
+            return true;
+        }else{
+            cheakingP = null;
+        }
+
+        return false;
+    }
+    private Piece getKing(boolean Opponent){
+       
+        Piece king = null;
+
+        for(Piece piece:simPieces){
+
+            if (Opponent) {
+                if (piece.type == Type.KING && piece.color != currentColor) {
+                    king = piece;
+                }  
+            }
+            else{
+                if (piece.type == Type.KING && piece.color == currentColor) {
+                    king = piece;
+                }
+            }
+        }
+        return king;
+    }
     private void checkCastling(){
         if (castlingP != null) {
             if (castlingP.col == 0) {
@@ -234,6 +309,44 @@ public class GamePanel extends JPanel implements Runnable{
         }
         activeP = null;
     }
+
+
+    private boolean canPromote(){
+        if(activeP.type==Type.PAWN){
+            if (currentColor == WHITE && activeP.row == 0 || currentColor == BLACK && activeP.row == 7) {
+                promotedPieces.clear();
+                promotedPieces.add(new Rook(currentColor,9,2));
+                promotedPieces.add(new Bishop(currentColor,9,3));
+                promotedPieces.add(new Knight(currentColor,9,4));
+                promotedPieces.add(new Queen(currentColor,9,2));
+                return true;
+            }
+        }
+        return  false;
+
+    }
+
+    private void promoting(){
+        if (mouse.pressed) {
+            for (Piece piece : promotedPieces) {
+                if (piece.col==mouse.x/Board.SQUARE_SIZE && piece.row == mouse.y/Board.SQUARE_SIZE) {
+                    switch(piece.type){
+                        case ROOK : simPieces.add(new Rook(currentColor, activeP.col, activeP.row));break;
+                        case QUEEN : simPieces.add(new Queen(currentColor, activeP.col, activeP.row));break;
+                        case KNIGHT : simPieces.add(new Knight(currentColor, activeP.col, activeP.row));break;
+                        case BISHOP : simPieces.add(new Bishop(currentColor, activeP.col, activeP.row));break;
+                        default   : break;
+                    }
+                    simPieces.remove(activeP.getIndex());
+                    copyPieces(simPieces, pieces);
+                    activeP = null;
+                    promotion = false;
+                    changeTurn();
+                }
+            }
+        }
+
+    }
     //this methode(in JComponent that JPanel inherits and is used  to draw objetcs  on the panel)
     @Override
     public void paintComponent(Graphics g) {
@@ -249,7 +362,7 @@ public class GamePanel extends JPanel implements Runnable{
         }
         if (activeP != null) {
 
-            if (canMove) {
+            if (canMove && isIllegale(activeP) == false && oppCanCaptureTheKing()) {
                 g2.setColor(Color.green);
                 g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
                 g2.fillRect(activeP.col * Board.SQUARE_SIZE, activeP.row * Board.SQUARE_SIZE, Board.SQUARE_SIZE,
@@ -272,13 +385,35 @@ public class GamePanel extends JPanel implements Runnable{
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setFont(new Font("Book Antiqua", Font.PLAIN, 40));
         g2.setColor(Color.white);
+        if(promotion){
+            g2.drawString("Promote to : ", 750, 150);
+            for (Piece piece : promotedPieces) {
+                g2.drawImage(piece.image , piece.getX(piece.col),piece.getY(piece.row),
+                            Board.SQUARE_SIZE,Board.SQUARE_SIZE,null);
+            }
+        }else{
+            if(currentColor == WHITE) {
+                g2.drawString("White's Turn", 750, 650);
+                if (cheakingP != null && cheakingP.color == BLACK) {
+                    g2.setColor(Color.red);
+                    g2.drawString("The KING",750, 700);
+                    g2.drawString("is in Check!",750, 750);
 
-        if(currentColor == WHITE) {
-            g2.drawString("White's Turn", 750, 650);
-        } else {
-            g2.drawString("Black's Turn", 750, 100);
+                }
+            }else {
+                g2.drawString("Black's Turn", 750, 100);
+                if (cheakingP != null && cheakingP.color == WHITE) {
+                    g2.setColor(Color.red);
+                    g2.drawString("The KING",750, 90);
+                    g2.drawString("is in Check!",750, 95);
+
+                }
+
+            }
+
+        
         }
-    }
     
 
+    }
 }
