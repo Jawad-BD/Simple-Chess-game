@@ -29,6 +29,7 @@ public class GamePanel extends JPanel implements Runnable{
     public static ArrayList<Piece> simPieces = new ArrayList<>();
     ArrayList<Piece> simPiecesCopy = new ArrayList<>();
     Piece activeP;
+    public  static Piece castlingP;
 
     //COLORS
     public static final int WHITE = 0;
@@ -65,19 +66,15 @@ public class GamePanel extends JPanel implements Runnable{
         pieces.add(new Pawn(WHITE, 5, 6));
         pieces.add(new Pawn(WHITE, 6, 6));
         pieces.add(new Pawn(WHITE, 7, 6));
-        // pieces.add(new Rook(WHITE, 4, 4)); ///testing
         pieces.add(new Rook(WHITE, 0, 7));
         pieces.add(new Rook(WHITE, 7, 7));
-        // pieces.add(new Knight(WHITE, 4, 4));//testing
-        pieces.add(new Knight(WHITE, 1, 7));
-        pieces.add(new Knight(WHITE, 6, 7));
-        pieces.add(new Bishop(WHITE, 2, 7));
-        // pieces.add(new Bishop(WHITE, 4, 4));//testing
-        pieces.add(new Bishop(WHITE, 5, 7));
-        pieces.add(new Queen(WHITE, 3, 7));
-        // pieces.add(new Queen(WHITE, 4, 4));//testing
+       
+        // pieces.add(new Knight(WHITE, 1, 7));
+        // pieces.add(new Knight(WHITE, 6, 7));
+        // pieces.add(new Bishop(WHITE, 2, 7));
+        // pieces.add(new Bishop(WHITE, 5, 7));
+        // pieces.add(new Queen(WHITE, 3, 7));
         pieces.add(new King(WHITE, 4, 7));
-        // pieces.add(new King(WHITE, 4, 4)); ///testing
 
         //Black team
         pieces.add(new Pawn(BLACK, 0, 1));
@@ -136,7 +133,7 @@ public class GamePanel extends JPanel implements Runnable{
     //this methode is gonna handle all the updating stuff(piece X and Y pos or the number of the pieces)
     private void update() {
         if (mouse.pressed) {
-            if (activeP == null) {
+                if (activeP == null) {
                 // If the activeP is null,check if you can pick up a piece
                 for (Piece piece : simPieces) {
                     //If The mouse is on a ally piece ,pick it up  as the activeP
@@ -159,6 +156,9 @@ public class GamePanel extends JPanel implements Runnable{
                     //Update the piece list in case  a piece  has been captured  and removed during   the simulation
                     copyPieces(simPieces, pieces);
                     activeP.updatePosition();
+                    if (castlingP!=null) {
+                        castlingP.updatePosition();
+                    }
                     changeTurn();
                 } else {
                     //the move is not valid so reset everything
@@ -177,6 +177,13 @@ public class GamePanel extends JPanel implements Runnable{
         //reset the pieces list in every loop
         //This is basically for restoring the removed piece during the simulation 
         copyPieces(pieces, simPieces);
+        //reset castling piece pos
+
+        if (castlingP!=null) {
+            castlingP.col=castlingP.preCol;
+            castlingP.x =castlingP.getX(castlingP.col);
+            castlingP=null;
+        }
 
         activeP.x = mouse.x - Board.HALF_SQUARE_SIZE;//adjust the pointer te center of the image
         activeP.y = mouse.y - Board.HALF_SQUARE_SIZE;
@@ -190,11 +197,23 @@ public class GamePanel extends JPanel implements Runnable{
             if (activeP.hittingP != null) {
                 simPieces.remove(activeP.hittingP.getIndex());
             }
+            checkCastling();
             validSquare = true;
         }
     }
     
-    
+    private void checkCastling(){
+        if (castlingP != null) {
+            if (castlingP.col == 0) {
+                castlingP.col += 3;
+            }
+            else if(castlingP.col==7){
+                castlingP.col -= 2;
+
+            }
+            castlingP.x = castlingP.getX(castlingP.col);
+        }
+    }
     public void changeTurn() {
         if (currentColor == WHITE) {
             currentColor = BLACK;
