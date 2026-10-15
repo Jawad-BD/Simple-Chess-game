@@ -6,15 +6,17 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 import main.Board;
 import main.GamePanel;
+import main.Type;
 
 public class Piece {
-
+    public Type type;
     public BufferedImage image;
     public int x, y;
     public int col, row, preCol, preRow; // pre == previous
     public int color;
     public Piece hittingP;
-    public boolean moved ;
+    public boolean moved ,twoStepped;
+
 
     public Piece(int color, int col, int row) {
         this.color = color;
@@ -74,11 +76,19 @@ public class Piece {
 
     //adjusts the position and place the piece at the center of the square
     public void updatePosition() {
+
+        if (type==Type.PAWN) {
+            if (Math.abs(row-preRow) == 2) {
+                twoStepped = true;
+            }
+        }
+
         x = getX(col);
         y = getY(row);
         preCol = getCol(x);
         preRow = getRow(y);
         moved = true;
+        
     }
     
     public void resetPosition() {
